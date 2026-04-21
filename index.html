@@ -412,7 +412,7 @@
 <main class="main">
 
   <!-- UPLOAD SECTION -->
-  <div id="upload-section">
+  <div id="upload-section" style="display:none;">
     <div style="display:flex;gap:8px;margin-bottom:16px;">
       <button class="mode-btn active" id="mode-btn-drive" onclick="switchMode('drive')">☁ Dari Google Drive</button>
       <button class="mode-btn" id="mode-btn-local" onclick="switchMode('local')">↑ Upload Manual</button>
@@ -467,7 +467,7 @@
       <span class="file-bar-name" id="file-bar-name"></span>
       <span class="file-bar-info" id="file-bar-info"></span>
       <button class="file-bar-btn" id="btn-refresh" onclick="refreshDrive()" style="display:none;">↻ Refresh</button>
-      <button class="file-bar-btn" onclick="resetApp()">↑ Ganti Sumber</button>
+      <button class="file-bar-btn" onclick="resetApp()" id="btn-ganti-sumber" style="${APPS_SCRIPT_URL ? 'display:none' : ''}">↑ Ganti Sumber</button>
     </div>
 
     <!-- TABS -->
@@ -1118,11 +1118,12 @@ function resetApp() {
   clearStorage();
   localStorage.removeItem('ar_script_url');
   allData = { city: [], owner: [] };
-  document.getElementById('upload-section').style.display = 'block';
+  document.getElementById('upload-section').style.display = APPS_SCRIPT_URL ? 'none' : 'block';
   document.getElementById('app-content').style.display = 'none';
   document.getElementById('file-input').value = '';
   document.getElementById('btn-refresh').style.display = 'none';
-  switchMode('drive');
+  if (!APPS_SCRIPT_URL) switchMode('drive');
+  else fetchFromDrive(APPS_SCRIPT_URL);
 }
 
 // ─── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
@@ -1208,11 +1209,10 @@ async function fetchFromDrive(url) {
 
 // Auto-load saat halaman dibuka
 window.addEventListener('load', () => {
-  // Prioritas 1: URL hardcoded di konstanta APPS_SCRIPT_URL (berlaku semua device)
+  // Prioritas 1: URL hardcoded — langsung fetch, sembunyikan halaman setup
   if (APPS_SCRIPT_URL && APPS_SCRIPT_URL.includes('script.google.com')) {
     scriptUrl = APPS_SCRIPT_URL;
-    const inp = document.getElementById('script-url-input');
-    if (inp) inp.value = APPS_SCRIPT_URL;
+    document.getElementById('upload-section').style.display = 'none';
     fetchFromDrive(APPS_SCRIPT_URL);
     return;
   }
@@ -1220,15 +1220,17 @@ window.addEventListener('load', () => {
   const savedUrl = localStorage.getItem('ar_script_url');
   if (savedUrl) {
     scriptUrl = savedUrl;
-    const inp = document.getElementById('script-url-input');
-    if (inp) inp.value = savedUrl;
+    document.getElementById('upload-section').style.display = 'none';
     fetchFromDrive(savedUrl);
     return;
   }
-  // Prioritas 3: Tampilkan data cache lokal (offline fallback)
+  // Prioritas 3: Cache lokal (offline fallback)
   if (loadFromStorage()) {
     switchTab('city', true);
+    return;
   }
+  // Tidak ada URL dan tidak ada cache — tampilkan halaman setup
+  document.getElementById('upload-section').style.display = 'block';
 });
 </script>
 </body>
