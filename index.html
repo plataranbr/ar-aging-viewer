@@ -375,6 +375,17 @@
     transition: transform 0.3s;
   }
 
+  .mode-btn {
+    font-family: inherit; font-size: 13px; font-weight: 500;
+    padding: 8px 16px; border: 1px solid var(--border);
+    border-radius: 8px; background: var(--surface);
+    color: var(--text2); cursor: pointer; transition: all 0.15s;
+    display: inline-flex; align-items: center;
+  }
+  .mode-btn:hover { background: var(--neutral-bg); color: var(--text); }
+  .mode-btn.active { background: var(--text); color: white; border-color: var(--text); }
+  #drive-status { padding: 8px 12px; border-radius: 8px; background: var(--surface2); }
+
   @media (max-width: 768px) {
     .main { padding: 16px; }
     .header { padding: 0 16px; }
@@ -402,31 +413,47 @@
 
   <!-- UPLOAD SECTION -->
   <div id="upload-section">
-    <div class="upload-zone" id="upload-zone">
-      <div class="upload-icon">
-        <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-      </div>
-      <div class="upload-title">Upload File Aging AR</div>
-      <div class="upload-sub">Drag & drop file di sini, atau <span onclick="document.getElementById('file-input').click()">pilih file</span></div>
-      <div class="upload-sub" style="margin-top:8px; font-size:12px;">Format: .xlsx — Sheet: SUM, CITY LEDGER, OWNER LEDGER</div>
-      <input type="file" id="file-input" accept=".xlsx,.xlsm,.xls">
+    <div style="display:flex;gap:8px;margin-bottom:16px;">
+      <button class="mode-btn active" id="mode-btn-drive" onclick="switchMode('drive')">☁ Dari Google Drive</button>
+      <button class="mode-btn" id="mode-btn-local" onclick="switchMode('local')">↑ Upload Manual</button>
     </div>
 
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px 24px;margin-top:8px;">
-      <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:12px;">Cara Penggunaan</div>
-      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;">
-        <div style="display:flex;gap:10px;align-items:flex-start;">
-          <div style="width:24px;height:24px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">1</div>
-          <div><div style="font-size:13px;font-weight:500;">Upload file Excel</div><div style="font-size:12px;color:var(--text3);">Format Aging AR (.xlsx) seperti biasa</div></div>
+    <!-- PANEL DRIVE -->
+    <div id="panel-drive">
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;">
+        <div style="font-size:15px;font-weight:600;margin-bottom:4px;">Sambungkan ke Google Drive</div>
+        <div style="font-size:13px;color:var(--text2);margin-bottom:20px;">Data otomatis ter-sync setiap web app dibuka. Tim cukup replace file Excel di Drive.</div>
+        <div style="display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;">
+          <div style="flex:1;min-width:260px;">
+            <label style="font-size:11px;color:var(--text3);font-weight:500;text-transform:uppercase;letter-spacing:0.5px;display:block;margin-bottom:6px;">Apps Script URL</label>
+            <input type="text" id="script-url-input" placeholder="https://script.google.com/macros/s/xxxxx/exec"
+              style="width:100%;font-size:13px;padding:8px 12px;border:1px solid var(--border);border-radius:8px;background:var(--surface2);color:var(--text);font-family:inherit;outline:none;">
+          </div>
+          <button onclick="connectDrive()" style="font-family:inherit;font-size:13px;font-weight:500;padding:9px 20px;background:var(--accent);color:white;border:none;border-radius:8px;cursor:pointer;white-space:nowrap;">Sambungkan</button>
         </div>
-        <div style="display:flex;gap:10px;align-items:flex-start;">
-          <div style="width:24px;height:24px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">2</div>
-          <div><div style="font-size:13px;font-weight:500;">Filter data</div><div style="font-size:12px;color:var(--text3);">Filter by unit, tanggal follow up, aging, status</div></div>
+        <div id="drive-status" style="margin-top:12px;font-size:12px;display:none;"></div>
+        <div style="margin-top:24px;padding-top:20px;border-top:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:0.6px;margin-bottom:14px;">Cara Setup (sekali saja)</div>
+          <div style="display:flex;flex-direction:column;gap:10px;">
+            <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">1</div><div style="font-size:13px;">Upload file <strong>Aging_AR.xlsx</strong> ke Google Drive (folder tim)</div></div>
+            <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">2</div><div style="font-size:13px;">Buka <a href="https://script.google.com" target="_blank" style="color:var(--accent)">script.google.com</a> → New project → paste isi file <strong>apps-script.gs</strong> → ganti <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:12px;">FILE_NAME</code></div></div>
+            <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">3</div><div style="font-size:13px;">Klik <strong>Deploy → New deployment → Web app</strong> · Execute as: <em>Me</em> · Access: <em>Anyone</em> → Deploy → copy URL</div></div>
+            <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">4</div><div style="font-size:13px;">Paste URL di kolom atas → klik Sambungkan. Selesai!</div></div>
+          </div>
         </div>
-        <div style="display:flex;gap:10px;align-items:flex-start;">
-          <div style="width:24px;height:24px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">3</div>
-          <div><div style="font-size:13px;font-weight:500;">Baca timeline</div><div style="font-size:12px;color:var(--text3);">Follow up terakhir di-highlight otomatis</div></div>
+      </div>
+    </div>
+
+    <!-- PANEL LOCAL -->
+    <div id="panel-local" style="display:none;">
+      <div class="upload-zone" id="upload-zone">
+        <div class="upload-icon">
+          <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
         </div>
+        <div class="upload-title">Upload File Aging AR</div>
+        <div class="upload-sub">Drag & drop file di sini, atau <span onclick="document.getElementById('file-input').click()">pilih file</span></div>
+        <div class="upload-sub" style="margin-top:8px;font-size:12px;">Format: .xlsx · Sheet: SUM, CITY LEDGER, OWNER LEDGER</div>
+        <input type="file" id="file-input" accept=".xlsx,.xlsm,.xls">
       </div>
     </div>
   </div>
@@ -436,10 +463,11 @@
 
     <!-- FILE BAR -->
     <div class="file-bar" id="file-bar">
-      <span class="file-bar-icon">📄</span>
+      <span class="file-bar-icon" id="file-bar-icon">📄</span>
       <span class="file-bar-name" id="file-bar-name"></span>
       <span class="file-bar-info" id="file-bar-info"></span>
-      <button class="file-bar-btn" onclick="resetApp()">Ganti File</button>
+      <button class="file-bar-btn" id="btn-refresh" onclick="refreshDrive()" style="display:none;">↻ Refresh</button>
+      <button class="file-bar-btn" onclick="resetApp()">↑ Ganti Sumber</button>
     </div>
 
     <!-- TABS -->
@@ -527,6 +555,71 @@ let currentTab = 'city';
 let sortField = 'no';
 let sortDir = 1;
 
+// ─── STORAGE ─────────────────────────────────────────────────────────────────
+const STORAGE_KEY = 'ar_aging_data_v1';
+
+function serializeData(data) {
+  // Convert Date objects to ISO strings for JSON storage
+  return data.map(r => ({
+    ...r,
+    billDate:        r.billDate        ? r.billDate.toISOString()        : null,
+    invoiceDate:     r.invoiceDate     ? r.invoiceDate.toISOString()     : null,
+    lastFollowUpDate: r.lastFollowUpDate ? r.lastFollowUpDate.toISOString() : null,
+  }));
+}
+
+function deserializeData(data) {
+  // Convert ISO strings back to Date objects
+  return data.map(r => ({
+    ...r,
+    billDate:        r.billDate        ? new Date(r.billDate)        : null,
+    invoiceDate:     r.invoiceDate     ? new Date(r.invoiceDate)     : null,
+    lastFollowUpDate: r.lastFollowUpDate ? new Date(r.lastFollowUpDate) : null,
+  }));
+}
+
+function saveToStorage(filename) {
+  try {
+    const payload = {
+      filename,
+      savedAt: new Date().toISOString(),
+      city:  serializeData(allData.city),
+      owner: serializeData(allData.owner),
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  } catch(e) {
+    // Storage full or unavailable — silently ignore
+    console.warn('localStorage save failed:', e);
+  }
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return false;
+    const payload = JSON.parse(raw);
+    allData.city  = deserializeData(payload.city  || []);
+    allData.owner = deserializeData(payload.owner || []);
+    if (!allData.city.length && !allData.owner.length) return false;
+    // Show app
+    document.getElementById('count-city').textContent  = allData.city.length;
+    document.getElementById('count-owner').textContent = allData.owner.length;
+    document.getElementById('upload-section').style.display = 'none';
+    document.getElementById('app-content').style.display    = 'block';
+    const savedAt = new Date(payload.savedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    document.getElementById('file-bar-name').textContent = payload.filename || 'Data tersimpan';
+    document.getElementById('file-bar-info').textContent = `— ${allData.city.length} City Ledger, ${allData.owner.length} Owner Ledger  ·  Disimpan ${savedAt}`;
+    return true;
+  } catch(e) {
+    console.warn('localStorage load failed:', e);
+    return false;
+  }
+}
+
+function clearStorage() {
+  localStorage.removeItem(STORAGE_KEY);
+}
+
 // ─── DATE ────────────────────────────────────────────────────────────────────
 document.getElementById('header-date').textContent = new Date().toLocaleDateString('id-ID',{weekday:'long',day:'numeric',month:'long',year:'numeric'});
 
@@ -580,6 +673,7 @@ function parseWorkbook(wb, filename) {
   document.getElementById('app-content').style.display = 'block';
   document.getElementById('file-bar-name').textContent = filename;
   document.getElementById('file-bar-info').textContent = `— ${allData.city.length} City Ledger, ${allData.owner.length} Owner Ledger`;
+  saveToStorage(filename);
   switchTab('city', true);
   showToast(`Berhasil memuat ${allData.city.length + allData.owner.length} data`);
 }
@@ -1015,11 +1109,109 @@ function switchTab(tab, force=false) {
 }
 
 function resetApp() {
+  if (!confirm('Kembali ke halaman awal dan ganti sumber data?')) return;
+  clearStorage();
+  localStorage.removeItem('ar_script_url');
   allData = { city: [], owner: [] };
   document.getElementById('upload-section').style.display = 'block';
   document.getElementById('app-content').style.display = 'none';
   document.getElementById('file-input').value = '';
+  document.getElementById('btn-refresh').style.display = 'none';
+  switchMode('drive');
 }
+
+// ─── GOOGLE DRIVE ─────────────────────────────────────────────────────────────
+let scriptUrl = '';
+
+function switchMode(mode) {
+  document.getElementById('panel-drive').style.display = mode === 'drive' ? 'block' : 'none';
+  document.getElementById('panel-local').style.display = mode === 'local' ? 'block' : 'none';
+  document.getElementById('mode-btn-drive').classList.toggle('active', mode === 'drive');
+  document.getElementById('mode-btn-local').classList.toggle('active', mode === 'local');
+}
+
+function setDriveStatus(msg, type) {
+  const el = document.getElementById('drive-status');
+  if (!msg) { el.style.display = 'none'; return; }
+  el.style.display = 'block';
+  el.style.color = type === 'error' ? 'var(--danger)' : type === 'ok' ? 'var(--accent)' : 'var(--text2)';
+  el.textContent = msg;
+}
+
+async function connectDrive() {
+  const url = document.getElementById('script-url-input').value.trim();
+  if (!url || !url.includes('script.google.com')) {
+    setDriveStatus('URL tidak valid. Pastikan copy dari halaman Deploy Apps Script.', 'error');
+    return;
+  }
+  scriptUrl = url;
+  localStorage.setItem('ar_script_url', url);
+  setDriveStatus('Menghubungkan ke Google Drive...', 'info');
+  await fetchFromDrive(url);
+}
+
+async function refreshDrive() {
+  if (!scriptUrl) return;
+  showLoading();
+  showToast('Mengambil data terbaru dari Drive...');
+  await fetchFromDrive(scriptUrl);
+}
+
+async function fetchFromDrive(url) {
+  showLoading();
+  try {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const json = await res.json();
+    if (json.error) throw new Error(json.error);
+    if (!json.fileBase64) throw new Error('Response tidak valid dari Apps Script');
+
+    // Decode base64 → parse Excel dengan SheetJS (sama seperti upload lokal)
+    const binary = atob(json.fileBase64);
+    const bytes  = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const wb = XLSX.read(bytes.buffer, { type: 'array', cellDates: true });
+
+    parseWorkbook(wb, json.filename || 'Aging AR');
+
+    // Override file-bar info
+    const updatedAt = json.updatedAt
+      ? new Date(json.updatedAt).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})
+      : '—';
+    document.getElementById('file-bar-icon').textContent = '☁';
+    document.getElementById('file-bar-info').textContent =
+      `— ${allData.city.length} City Ledger, ${allData.owner.length} Owner Ledger  ·  Update: ${updatedAt}`;
+    document.getElementById('btn-refresh').style.display = 'inline-block';
+    setDriveStatus('', '');
+    hideLoading();
+    return true;
+  } catch(e) {
+    hideLoading();
+    const msg = e.message.includes('Failed to fetch')
+      ? 'Tidak bisa terhubung. Pastikan URL benar dan Apps Script sudah di-deploy dengan akses "Anyone".'
+      : 'Gagal: ' + e.message;
+    setDriveStatus(msg, 'error');
+    showToast('Gagal: ' + e.message);
+    // Fallback ke cache jika ada
+    if (loadFromStorage()) {
+      document.getElementById('file-bar-info').textContent += '  · (data cache)';
+      switchTab('city', true);
+    }
+    return false;
+  }
+}
+
+// Auto-load saat halaman dibuka
+window.addEventListener('load', () => {
+  const savedUrl = localStorage.getItem('ar_script_url');
+  if (savedUrl) {
+    scriptUrl = savedUrl;
+    document.getElementById('script-url-input') && (document.getElementById('script-url-input').value = savedUrl);
+    fetchFromDrive(savedUrl);
+  } else if (loadFromStorage()) {
+    switchTab('city', true);
+  }
+});
 </script>
 </body>
 </html>
