@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AR Aging Viewer</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://script.google.com/macros/s/AKfycbypzpj5wo2ytLI41N_rOUnHfqEhX3YGNmkEA9vDQQB9RRowCbkg7IEboIO9AxJ3Ymyo/exec"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap');
 
@@ -438,7 +438,7 @@
             <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">1</div><div style="font-size:13px;">Upload file <strong>Aging_AR.xlsx</strong> ke Google Drive (folder tim)</div></div>
             <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">2</div><div style="font-size:13px;">Buka <a href="https://script.google.com" target="_blank" style="color:var(--accent)">script.google.com</a> → New project → paste isi file <strong>apps-script.gs</strong> → ganti <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:12px;">FILE_NAME</code></div></div>
             <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">3</div><div style="font-size:13px;">Klik <strong>Deploy → New deployment → Web app</strong> · Execute as: <em>Me</em> · Access: <em>Anyone</em> → Deploy → copy URL</div></div>
-            <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">4</div><div style="font-size:13px;">Paste URL di kolom atas → klik Sambungkan. Selesai!</div></div>
+            <div style="display:flex;gap:12px;align-items:flex-start;"><div style="width:22px;height:22px;background:var(--accent-bg);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:11px;font-weight:700;color:var(--accent);">4</div><div style="font-size:13px;">Paste URL di kolom atas → klik <strong>Sambungkan</strong>. Atau isi langsung di konstanta <code style="background:var(--surface2);padding:1px 5px;border-radius:4px;font-size:12px;">APPS_SCRIPT_URL</code> di file HTML → upload ulang ke GitHub → semua device otomatis connect tanpa perlu input apapun.</div></div>
           </div>
         </div>
       </div>
@@ -549,6 +549,11 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ─── KONFIGURASI ─────────────────────────────────────────────────────────────
+// ⚠️ ISI URL APPS SCRIPT ANDA DI SINI — setelah diisi, upload ulang ke GitHub
+// Cara dapat URL: script.google.com → Deploy → Copy deployment URL
+const APPS_SCRIPT_URL = '';  // contoh: 'https://script.google.com/macros/s/xxxx/exec'
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 let allData = { city: [], owner: [] };
 let currentTab = 'city';
@@ -1203,12 +1208,25 @@ async function fetchFromDrive(url) {
 
 // Auto-load saat halaman dibuka
 window.addEventListener('load', () => {
+  // Prioritas 1: URL hardcoded di konstanta APPS_SCRIPT_URL (berlaku semua device)
+  if (APPS_SCRIPT_URL && APPS_SCRIPT_URL.includes('script.google.com')) {
+    scriptUrl = APPS_SCRIPT_URL;
+    const inp = document.getElementById('script-url-input');
+    if (inp) inp.value = APPS_SCRIPT_URL;
+    fetchFromDrive(APPS_SCRIPT_URL);
+    return;
+  }
+  // Prioritas 2: URL tersimpan di localStorage device ini
   const savedUrl = localStorage.getItem('ar_script_url');
   if (savedUrl) {
     scriptUrl = savedUrl;
-    document.getElementById('script-url-input') && (document.getElementById('script-url-input').value = savedUrl);
+    const inp = document.getElementById('script-url-input');
+    if (inp) inp.value = savedUrl;
     fetchFromDrive(savedUrl);
-  } else if (loadFromStorage()) {
+    return;
+  }
+  // Prioritas 3: Tampilkan data cache lokal (offline fallback)
+  if (loadFromStorage()) {
     switchTab('city', true);
   }
 });
