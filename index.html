@@ -1677,7 +1677,7 @@ function renderSummary() {
 
 // ─── PASSWORD ────────────────────────────────────────────────────────────────
 // ⚠️ GANTI PASSWORD DI SINI
-const APP_PASSWORD = 'pbr2026';
+const APP_PASSWORD = 'plataran2024';
 
 function checkPassword() {
   const input = document.getElementById('lock-input');
@@ -1704,7 +1704,7 @@ if (sessionStorage.getItem('ar_auth') === '1') {
 
 // ─── ANALYTICS ────────────────────────────────────────────────────────────────
 function renderTurnover() {
-  const all = [...(allData.city||[]), ...(allData.owner||[])];
+  const all = [...(allData.city||[])];  // Analytics khusus City Ledger
   if (!all.length) { document.getElementById('turnover-content').innerHTML = '<p style="padding:20px;color:var(--text3)">Tidak ada data</p>'; return; }
   const today = new Date();
   const todayMs = today.getTime();
@@ -1783,7 +1783,7 @@ function renderTurnover() {
           <div class="stat-sub">weighted by balance</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Rata-rata</div>
+          <div class="stat-label">Rata-rata Sederhana</div>
           <div class="stat-value">${avgAge} hari</div>
           <div class="stat-sub">per invoice</div>
         </div>
