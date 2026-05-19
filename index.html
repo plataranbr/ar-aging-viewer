@@ -873,7 +873,7 @@ function handleFile(file) {
   const reader = new FileReader();
   reader.onload = e => {
     try {
-      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: true });
+      const wb = XLSX.read(e.target.result, { type: 'array', cellDates: false });
       parseWorkbook(wb, file.name);
       hideLoading();
     } catch(err) {
@@ -913,6 +913,16 @@ function parseSheet(ws) {
   // Use raw:true to get actual values (numbers for dates), then read date cells directly
   const rows = XLSX.utils.sheet_to_json(ws, { header: 1, raw: true, defval: '' });
 
+  // Dapatkan origin row dari !ref (sheet mungkin tidak mulai dari A1)
+  // Misal kalau !ref = "A3:M500", origin row = 2 (0-based)
+  let originRow = 0;
+  if (ws['!ref']) {
+    try {
+      const range = XLSX.utils.decode_range(ws['!ref']);
+      originRow = range.s.r;
+    } catch(e) { originRow = 0; }
+  }
+
   // find header row
   let headerIdx = -1;
   for (let i = 0; i < Math.min(10, rows.length); i++) {
@@ -937,12 +947,6 @@ function parseSheet(ws) {
   const colStatus   = headers.findIndex(h => h.includes('status'));
   const colFollowUp = headers.findIndex(h => h.includes('follow') || h.includes('last'));
 
-  // Get column letters for direct cell access (to read date cells properly)
-  const colLetter = idx => {
-    if (idx < 0) return null;
-    return String.fromCharCode(65 + idx); // A=0, B=1, etc. (works up to Z)
-  };
-
   const results = [];
   for (let i = headerIdx + 1; i < rows.length; i++) {
     const row = rows[i];
@@ -955,11 +959,11 @@ function parseSheet(ws) {
     // Read balance — raw number
     const balance = colBalance >= 0 ? (parseFloat(row[colBalance]) || 0) : 0;
 
-    // Read dates directly from worksheet cells (they come as Excel serial numbers when raw:true)
-    const excelRow = headerIdx + 1 + i; // actual Excel row number (1-based) = header row + offset
-    const actualRow = i + 1; // sheet_to_json rows are 0-based, Excel rows are 1-based
-    const billDate  = readDateCell(ws, colBillDate, actualRow);
-    const invDate   = readDateCell(ws, colInvDate, actualRow);
+    // Read dates directly from worksheet cells via cell reference
+    // i = index di array rows (0-based), originRow = baris awal sheet di Excel (0-based)
+    // Jadi baris Excel actual = i + originRow (sudah dihandle di readDateCell)
+    const billDate  = readDateCell(ws, colBillDate, i, originRow);
+    const invDate   = readDateCell(ws, colInvDate,  i, originRow);
 
     const followUpText = colFollowUp >= 0 ? String(row[colFollowUp]).trim() : '';
     const lastFUDate = extractLastDate(followUpText);
@@ -987,23 +991,32 @@ function parseSheet(ws) {
 }
 
 // Read a date cell directly from worksheet — handles Excel serial date numbers
-function readDateCell(ws, colIdx, rowIdx) {
+// rowIdx = 0-based row index dari sheet_to_json (sudah memperhitungkan origin sheet)
+// originRow = baris awal sheet (dari !ref), default 0
+function readDateCell(ws, colIdx, rowIdx, originRow = 0) {
   if (colIdx < 0) return null;
-  // Build cell address: column letter + row number (both 0-indexed col, 1-indexed row in xlsx)
-  // rowIdx here = 0-based row index in sheet_to_json array, Excel row = rowIdx + 1
-  const colLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const colStr = colIdx < 26 ? colLetters[colIdx] : colLetters[Math.floor(colIdx/26)-1] + colLetters[colIdx%26];
-  const cellAddr = colStr + (rowIdx + 1); // +1 because Excel rows are 1-based
-  const cell = ws[cellAddr];
+  // Konversi kolom ke huruf Excel — support kolom AA, AB, dst.
+  // Pakai utility SheetJS supaya akurat
+  const cellRef = XLSX.utils.encode_cell({ c: colIdx, r: rowIdx + originRow });
+  const cell = ws[cellRef];
   if (!cell) return null;
-  // If SheetJS already parsed it as a Date
-  if (cell.v instanceof Date) return isNaN(cell.v) ? null : cell.v;
-  // Excel serial number (e.g. 46096 = 2026-03-07)
-  if (typeof cell.v === 'number' && cell.v > 20000) {
+
+  // Prioritas 1: Excel serial number (paling akurat, no timezone games)
+  // Range valid: 1 (1900-01-01) sampai ~80000 (~2119)
+  if (typeof cell.v === 'number' && cell.v > 1 && cell.v < 80000) {
     const d = XLSX.SSF.parse_date_code(cell.v);
-    if (d) return new Date(d.y, d.m - 1, d.d);
+    if (d && d.y && d.m && d.d) return new Date(d.y, d.m - 1, d.d);
   }
-  // Formatted string fallback
+
+  // Prioritas 2: Date object (kalau cellDates: true atau cell punya Date langsung)
+  // Pakai UTC getters untuk hindari timezone offset
+  if (cell.v instanceof Date) {
+    if (isNaN(cell.v)) return null;
+    // Build local-midnight Date dari komponen UTC supaya konsisten dgn fmtDate
+    return new Date(cell.v.getUTCFullYear(), cell.v.getUTCMonth(), cell.v.getUTCDate());
+  }
+
+  // Prioritas 3: Formatted string fallback (jarang terpakai karena raw:true di parseSheet)
   const s = String(cell.w || cell.v || '').trim();
   return parseDateStr(s);
 }
@@ -1477,7 +1490,7 @@ async function fetchFromDrive(url) {
     const binary = atob(json.fileBase64);
     const bytes  = new Uint8Array(binary.length);
     for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-    const wb = XLSX.read(bytes.buffer, { type: 'array', cellDates: true });
+    const wb = XLSX.read(bytes.buffer, { type: 'array', cellDates: false });
 
     parseWorkbook(wb, json.filename || 'Aging AR');
 
@@ -1783,7 +1796,7 @@ function renderTurnover() {
           <div class="stat-sub">weighted by balance</div>
         </div>
         <div class="stat-card">
-          <div class="stat-label">Rata-rata</div>
+          <div class="stat-label">Rata-rata Sederhana</div>
           <div class="stat-value">${avgAge} hari</div>
           <div class="stat-sub">per invoice</div>
         </div>
